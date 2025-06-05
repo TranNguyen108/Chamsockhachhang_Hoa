@@ -137,16 +137,15 @@ const CustomerManagement = () => {
       title="Quản lý khách hàng"
       description="Quản lý danh sách khách hàng, thêm, sửa, xoá, tìm kiếm, thống kê."
     >
-      <Card sx={{ mb: 3, p: 2 }}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
-          <Typography variant="h4">Quản lý khách hàng</Typography>
-          <Button variant="contained" color="primary" onClick={handleOpen}>
+      <Card sx={{ mb: 3, p: { xs: 1, sm: 2 } }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'stretch', sm: 'center' }} justifyContent="space-between" mb={2} gap={2}>
+          <Typography variant="h4" fontSize={{ xs: 20, sm: 28 }}>Quản lý khách hàng</Typography>
+          <Button variant="contained" color="primary" onClick={handleOpen} sx={{ width: { xs: '100%', sm: 'auto' } }}>
             Thêm khách hàng
           </Button>
         </Stack>
         <Divider sx={{ mb: 2 }} />
-        {/* <Grid container spacing={2} alignItems="center" mb={2}> */}
-        <Box display="flex" flexWrap="wrap" gap={2} mb={2}>
+        <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} flexWrap="wrap" gap={2} mb={2}>
           <Box flex={8} minWidth={200}>
             <TextField
               label="Tìm theo tên, số điện thoại"
@@ -162,52 +161,30 @@ const CustomerManagement = () => {
             </Button>
           </Box>
         </Box>
-        {/* </Grid> */}
-        <Paper variant="outlined" sx={{ mt: 2 }}>
-          <Table>
+        <Paper variant="outlined" sx={{ mt: 2, overflowX: 'auto' }}>
+          <Table size="small">
             <TableHead sx={{ bgcolor: "#f5f5f5" }}>
               <TableRow>
-                <TableCell>
-                  <b>Tên</b>
-                </TableCell>
-                <TableCell>
-                  <b>Số điện thoại</b>
-                </TableCell>
-                <TableCell>
-                  <b>Ghi chú</b>
-                </TableCell>
-                <TableCell>
-                  <b>Điểm tích lũy</b>
-                </TableCell>
-                <TableCell>
-                  <b>Ngày tạo</b>
-                </TableCell>
-                <TableCell>
-                  <b>Thao tác</b>
-                </TableCell>
+                <TableCell><b>Tên</b></TableCell>
+                <TableCell><b>Số điện thoại</b></TableCell>
+                <TableCell><b>Ghi chú</b></TableCell>
+                <TableCell><b>Điểm tích lũy</b></TableCell>
+                <TableCell><b>Ngày tạo</b></TableCell>
+                <TableCell><b>Thao tác</b></TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {filtered.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell>{c.name}</TableCell>
-                  <TableCell>{c.phone}</TableCell>
-                  <TableCell>{c.note}</TableCell>
-                  <TableCell>{c.point || 0}</TableCell>
-                  <TableCell>{c.created_at ? new Date(c.created_at).toLocaleDateString() : ""}</TableCell>
-                  <TableCell>
-                    <IconButton onClick={() => handleView(c)}>
-                      <IconEye size={18} />
-                    </IconButton>
-                    <IconButton onClick={() => handleEditPoint(c)}>
-                      <IconEdit size={18} />
-                    </IconButton>
-                    <IconButton onClick={() => setEditCustomer(c)}>
-                      <IconEdit size={18} color="secondary" />
-                    </IconButton>
-                    <IconButton onClick={() => handleDelete(c.id)}>
-                      <IconTrash size={18} />
-                    </IconButton>
+                <TableRow key={c.id} hover sx={{ transition: 'background 0.2s', cursor: 'pointer', '&:hover': { bgcolor: '#e3f2fd' } }}>
+                  <TableCell sx={{ minWidth: 120 }}>{c.name}</TableCell>
+                  <TableCell sx={{ minWidth: 120 }}>{c.phone}</TableCell>
+                  <TableCell sx={{ minWidth: 120 }}>{c.note}</TableCell>
+                  <TableCell sx={{ minWidth: 80 }}>{c.point || 0}</TableCell>
+                  <TableCell sx={{ minWidth: 100 }}>{c.created_at ? new Date(c.created_at).toLocaleDateString() : ""}</TableCell>
+                  <TableCell sx={{ minWidth: 120 }}>
+                    <IconButton onClick={() => handleView(c)} sx={{ color: '#1976d2', '&:hover': { bgcolor: '#e3f2fd' } }}><IconEye size={18} /></IconButton>
+                    <IconButton onClick={() => setEditCustomer(c)} sx={{ color: '#388e3c', '&:hover': { bgcolor: '#e8f5e9' } }}><IconEdit size={18} /></IconButton>
+                    <IconButton onClick={() => handleDelete(c.id)} sx={{ color: '#d32f2f', '&:hover': { bgcolor: '#ffebee' } }}><IconTrash size={18} /></IconButton>
                   </TableCell>
                 </TableRow>
               ))}

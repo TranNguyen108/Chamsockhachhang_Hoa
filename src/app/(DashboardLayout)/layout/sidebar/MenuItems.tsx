@@ -5,11 +5,13 @@ import {
   IconMoodHappy,
   IconTypography,
   IconUser,
+  IconGift, // Thay cho voucher
+  IconChartBar, // Thay cho thống kê doanh thu
 } from "@tabler/icons-react";
 import { uniqueId } from "lodash";
 
 const Menuitems = [
-  {
+  { 
     navlabel: true,
     subheader: "ALAN CORP",
     style: { fontSize: '12px', fontWeight: 'bold', color: '#5D87FF' },
@@ -28,7 +30,7 @@ const Menuitems = [
     id: uniqueId(),
     title: "Quản lý người dùng",
     icon: IconUser,
-    href: "/utilities/typography",
+    href: "/utilities/customer",
   },
   {
     id: uniqueId(),
@@ -38,8 +40,14 @@ const Menuitems = [
   },
   {
     id: uniqueId(),
+    title: "Quản lý voucher",
+    icon: IconGift, // Đổi icon voucher
+    href: "/utilities/voucher",
+  },
+  {
+    id: uniqueId(),
     title: "Thống kê doanh thu",
-    icon: IconTypography,
+    icon: IconChartBar, // Đổi icon thống kê doanh thu
     href: "/utilities/thongke",
   },
   {
@@ -52,8 +60,8 @@ const Menuitems = [
   },
   {
     id: uniqueId(),
-    title: "Icons",
-    icon: IconMoodHappy,
+    title: "Profile công ty",
+    icon: IconTypography, // Đổi icon cho trang Profile công ty
     href: "/icons",
   },
   {

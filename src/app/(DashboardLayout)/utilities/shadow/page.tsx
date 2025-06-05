@@ -25,23 +25,32 @@ import {
 } from "@mui/material";
 import { supabase } from "@/utils/supabase";
 import PageContainer from "@/app/(DashboardLayout)/components/container/PageContainer";
-import { IconTrash } from "@tabler/icons-react";
+import { IconTrash, IconEdit } from "@tabler/icons-react";
 
 interface Order {
   id: string;
+  customer_id?: string;
   customer_name: string;
   customer_phone: string;
+  customer_address?: string;
   product: string;
   amount: number;
   status: string;
   created_at: string;
+  voucher_code?: string;
+  voucher_discount?: number;
+  final_amount?: number;
 }
 
 const OrderManagement = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ customer_name: "", customer_phone: "", product: "", amount: 0 });
+  const [form, setForm] = useState({ customer_name: "", customer_phone: "", customer_address: "", product: "", amount: 0 });
   const [error, setError] = useState("");
+  const [voucherCode, setVoucherCode] = useState("");
+  const [voucherInfo, setVoucherInfo] = useState<{discount: number, code: string} | null>(null);
+  const [editOrder, setEditOrder] = useState<Order | null>(null);
+  const [editForm, setEditForm] = useState<any>({});
 
   useEffect(() => {
     fetchOrders();
@@ -55,25 +64,33 @@ const OrderManagement = () => {
       .from("orders")
       .select("*")
       .gte("created_at", isoToday)
-      .in("status", ["pending"])
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false }); // Bỏ .in("status", ["pending"]) để lấy tất cả đơn hôm nay
     setOrders(data || []);
   };
 
   const handleOpen = () => {
     setError("");
-    setForm({ customer_name: "", customer_phone: "", product: "", amount: 0 });
+    setForm({ customer_name: "", customer_phone: "", customer_address: "", product: "", amount: 0 });
     setOpen(true);
   };
   const handleClose = () => {
     setOpen(false);
-    setForm({ customer_name: "", customer_phone: "", product: "", amount: 0 });
+    setForm({ customer_name: "", customer_phone: "", customer_address: "", product: "", amount: 0 });
   };
   const handleChange = (e: any) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
+  const handleVoucherCheck = async (code: string) => {
+    if (!code) { setVoucherInfo(null); return; }
+    const { data } = await supabase.from("vouchers").select("*").eq("code", code).single();
+    if (data && data.status === "active" && new Date(data.expired_at) >= new Date()) {
+      setVoucherInfo({ discount: data.discount, code: data.code });
+    } else {
+      setVoucherInfo(null);
+    }
+  };
   const handleSubmit = async () => {
-    if (!form.customer_name || !form.customer_phone || !form.product || !form.amount) {
+    if (!form.customer_name || !form.customer_phone || !form.customer_address || !form.product || !form.amount) {
       setError("Vui lòng nhập đầy đủ thông tin");
       return;
     }
@@ -86,7 +103,7 @@ const OrderManagement = () => {
       currentPoint = customers[0].point || 0;
     } else {
       // Nếu chưa có khách hàng thì tạo mới
-      const { data: newCustomer } = await supabase.from("customers").insert({ name: form.customer_name, phone: form.customer_phone, point: 0 }).select();
+      const { data: newCustomer } = await supabase.from("customers").insert({ name: form.customer_name, phone: form.customer_phone, address: form.customer_address, point: 0 }).select();
       if (newCustomer && newCustomer.length > 0) {
         customerId = newCustomer[0].id;
         currentPoint = 0;
@@ -94,13 +111,28 @@ const OrderManagement = () => {
     }
     // Tính điểm tích luỹ
     const addPoint = Math.floor((Number(form.amount) / 100000) * 1000 * 100) / 100; // làm tròn 2 số lẻ
+    let discount = 0;
+    let voucherUsed = null;
+    if (voucherInfo) {
+      discount = Math.round(Number(form.amount) * voucherInfo.discount / 100);
+      voucherUsed = voucherInfo.code;
+    }
+    const finalAmount = Number(form.amount) - discount;
     // Tạo đơn hàng
-    await supabase.from("orders").insert([{ ...form, status: "pending", customer_id: customerId }]);
+    const { error: insertError } = await supabase.from("orders").insert([
+      { ...form, status: "pending", customer_id: customerId, voucher_code: voucherUsed, voucher_discount: discount, final_amount: finalAmount }
+    ]);
+    if (insertError) {
+      setError("Lỗi khi thêm đơn hàng: " + insertError.message);
+      return;
+    }
     // Cộng điểm cho khách hàng chỉ khi KHÔNG phải huỷ đơn
     if (customerId && addPoint > 0) {
       await supabase.from("customers").update({ point: currentPoint + addPoint }).eq("id", customerId);
     }
     handleClose();
+    setVoucherCode("");
+    setVoucherInfo(null);
     fetchOrders();
   };
   const handleStatus = async (id: string, status: string) => {
@@ -148,36 +180,53 @@ const OrderManagement = () => {
           <Table>
             <TableHead sx={{ bgcolor: '#f5f5f5' }}>
               <TableRow>
-                <TableCell><b>Khách hàng</b></TableCell>
-                <TableCell><b>Số điện thoại</b></TableCell>
+                <TableCell><b>ID đơn hàng</b></TableCell>
+                <TableCell><b>Thông tin</b></TableCell>
                 <TableCell><b>Sản phẩm</b></TableCell>
-                <TableCell><b>Giá tiền</b></TableCell>
+                <TableCell><b>Thông tin thanh toán</b></TableCell>
                 <TableCell><b>Trạng thái</b></TableCell>
                 <TableCell><b>Thời gian</b></TableCell>
                 <TableCell><b>Thao tác</b></TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {orders.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell>{order.customer_name}</TableCell>
-                  <TableCell>{order.customer_phone}</TableCell>
+              {orders.filter(order => order.status === "pending").map((order) => (
+                <TableRow key={order.id} hover sx={{ transition: 'background 0.2s', cursor: 'pointer', '&:hover': { bgcolor: '#e3f2fd' } }}>
+                  <TableCell sx={{ fontWeight: 600, color: '#1976d2' }}>{order.id.slice(-6).toUpperCase()}</TableCell>
+                  <TableCell>
+                    <b>{order.customer_name}</b><br />
+                    <span style={{ color: '#888' }}>{order.customer_phone}</span><br />
+                    {order.customer_address && <span style={{ color: '#888' }}>{order.customer_address}</span>}
+                  </TableCell>
                   <TableCell>{order.product}</TableCell>
-                  <TableCell>{order.amount}</TableCell>
+                  <TableCell>
+                    <div>Tổng tiền sản phẩm: {order.amount.toLocaleString()}₫</div>
+                    {order.voucher_discount ? <div>Giảm giá từ voucher: -{order.voucher_discount.toLocaleString()}₫</div> : null}
+                    {order.voucher_code ? <div>Mã giảm giá: {order.voucher_code}</div> : null}
+                    <div>Thành tiền sau giảm: {(order.final_amount || order.amount).toLocaleString()}₫</div>
+                    <div>Số điểm tích được: {Math.floor((order.amount / 100000) * 1000 * 100) / 100}</div>
+                  </TableCell>
                   <TableCell>
                     <Select
                       value={order.status}
                       onChange={e => handleStatus(order.id, e.target.value)}
                       size="small"
+                      sx={{
+                        bgcolor: order.status === 'pending' ? '#fffde7' : order.status === 'delivered' ? '#e8f5e9' : '#ffebee',
+                        color: order.status === 'pending' ? '#fbc02d' : order.status === 'delivered' ? '#388e3c' : '#d32f2f',
+                        fontWeight: 600,
+                        borderRadius: 1
+                      }}
                     >
-                      <MenuItem value="pending">Đang chuẩn bị</MenuItem>
-                      <MenuItem value="delivered">Đã giao</MenuItem>
-                      <MenuItem value="cancelled">Huỷ đơn</MenuItem>
+                      <MenuItem value="pending" sx={{ color: '#fbc02d' }}>Đang chuẩn bị</MenuItem>
+                      <MenuItem value="delivered" sx={{ color: '#388e3c' }}>Đã giao</MenuItem>
+                      <MenuItem value="cancelled" sx={{ color: '#d32f2f' }}>Huỷ đơn</MenuItem>
                     </Select>
                   </TableCell>
                   <TableCell>{new Date(order.created_at).toLocaleTimeString()}</TableCell>
                   <TableCell>
-                    <IconButton onClick={() => handleDelete(order.id)}><IconTrash size={18} /></IconButton>
+                    <IconButton onClick={() => { setEditOrder(order); setEditForm(order); }} sx={{ color: '#1976d2', '&:hover': { bgcolor: '#e3f2fd' } }}><IconEdit size={18} /></IconButton>
+                    <IconButton onClick={() => handleDelete(order.id)} sx={{ color: '#d32f2f', '&:hover': { bgcolor: '#ffebee' } }}><IconTrash size={18} /></IconButton>
                   </TableCell>
                 </TableRow>
               ))}
@@ -190,13 +239,92 @@ const OrderManagement = () => {
         <DialogContent>
           <TextField margin="dense" label="Tên khách hàng" name="customer_name" value={form.customer_name} onChange={handleChange} fullWidth />
           <TextField margin="dense" label="Số điện thoại" name="customer_phone" value={form.customer_phone} onChange={handleChange} fullWidth />
+          <TextField margin="dense" label="Địa chỉ" name="customer_address" value={form.customer_address} onChange={handleChange} fullWidth />
           <TextField margin="dense" label="Sản phẩm" name="product" value={form.product} onChange={handleChange} fullWidth />
           <TextField margin="dense" label="Giá tiền" name="amount" type="number" value={form.amount} onChange={handleChange} fullWidth />
+          <TextField margin="dense" label="Mã giảm giá (Voucher)" value={voucherCode} onChange={e => { setVoucherCode(e.target.value.toUpperCase()); handleVoucherCheck(e.target.value.toUpperCase()); }} fullWidth />
+          {voucherInfo && <Typography color="success.main">Áp dụng: {voucherInfo.discount}%</Typography>}
           {error && <Typography color="error">{error}</Typography>}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>Huỷ</Button>
           <Button onClick={handleSubmit} variant="contained">Lưu</Button>
+        </DialogActions>
+      </Dialog>
+      {/* Dialog sửa đơn hàng */}
+      <Dialog open={!!editOrder} onClose={() => { setEditOrder(null); setError(""); }}>
+        <DialogTitle>Sửa đơn hàng</DialogTitle>
+        <DialogContent>
+          <TextField margin="dense" label="Tên khách hàng" name="customer_name" value={editForm.customer_name || ""} onChange={e => setEditForm({ ...editForm, customer_name: e.target.value })} fullWidth />
+          <TextField margin="dense" label="Số điện thoại" name="customer_phone" value={editForm.customer_phone || ""} onChange={e => setEditForm({ ...editForm, customer_phone: e.target.value })} fullWidth />
+          <TextField margin="dense" label="Địa chỉ" name="customer_address" value={editForm.customer_address || ""} onChange={e => setEditForm({ ...editForm, customer_address: e.target.value })} fullWidth />
+          <TextField margin="dense" label="Sản phẩm" name="product" value={editForm.product || ""} onChange={e => setEditForm({ ...editForm, product: e.target.value })} fullWidth />
+          <TextField margin="dense" label="Giá tiền" name="amount" type="number" value={editForm.amount || 0} onChange={e => setEditForm({ ...editForm, amount: e.target.value })} fullWidth />
+          <TextField margin="dense" label="Mã giảm giá (Voucher)" name="voucher_code" value={editForm.voucher_code || ""} onChange={async e => {
+            const code = e.target.value.toUpperCase();
+            setEditForm({ ...editForm, voucher_code: code });
+            if (!code) {
+              setEditForm((prev: any) => ({ ...prev, voucher_discount: 0, final_amount: prev.amount }));
+              return;
+            }
+            const { data } = await supabase.from("vouchers").select("*").eq("code", code).single();
+            if (data && data.status === "active" && new Date(data.expired_at) >= new Date()) {
+              const discount = Math.round(Number(editForm.amount) * data.discount / 100);
+              setEditForm((prev: any) => ({ ...prev, voucher_discount: discount, final_amount: Number(prev.amount) - discount }));
+              setError("");
+            } else {
+              setEditForm((prev: any) => ({ ...prev, voucher_discount: 0, final_amount: prev.amount }));
+              setError("Mã voucher không hợp lệ hoặc đã hết hạn");
+            }
+          }} fullWidth />
+          {editForm.voucher_discount ? <Typography color="success.main">Giảm: {editForm.voucher_discount.toLocaleString()}₫</Typography> : null}
+          {editForm.final_amount ? <Typography color="primary">Thành tiền: {editForm.final_amount.toLocaleString()}₫</Typography> : null}
+          {error && <Typography color="error">{error}</Typography>}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setEditOrder(null); setError(""); }}>Huỷ</Button>
+          <Button variant="contained" onClick={async () => {
+            // Validate
+            if (!editForm.customer_name || !editForm.customer_phone || !editForm.customer_address || !editForm.product || !editForm.amount) {
+              setError("Vui lòng nhập đầy đủ thông tin");
+              return;
+            }
+            if (!editOrder) {
+              setError("Không tìm thấy đơn hàng để cập nhật");
+              return;
+            }
+            // Nếu có mã voucher thì kiểm tra lại
+            let voucher_discount = 0;
+            let final_amount = Number(editForm.amount);
+            let voucher_code = editForm.voucher_code || null;
+            if (voucher_code) {
+              const { data } = await supabase.from("vouchers").select("*").eq("code", voucher_code).single();
+              if (data && data.status === "active" && new Date(data.expired_at) >= new Date()) {
+                voucher_discount = Math.round(Number(editForm.amount) * data.discount / 100);
+                final_amount = Number(editForm.amount) - voucher_discount;
+              } else {
+                setError("Mã voucher không hợp lệ hoặc đã hết hạn");
+                return;
+              }
+            }
+            const { error: updateError } = await supabase.from("orders").update({
+              customer_name: editForm.customer_name,
+              customer_phone: editForm.customer_phone,
+              customer_address: editForm.customer_address,
+              product: editForm.product,
+              amount: Number(editForm.amount),
+              voucher_code: voucher_code,
+              voucher_discount: voucher_discount,
+              final_amount: final_amount
+            }).eq("id", editOrder.id);
+            if (!updateError) {
+              setEditOrder(null);
+              setError("");
+              fetchOrders();
+            } else {
+              setError("Lỗi khi cập nhật đơn hàng: " + updateError.message);
+            }
+          }}>Lưu</Button>
         </DialogActions>
       </Dialog>
     </PageContainer>

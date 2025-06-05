@@ -15,12 +15,12 @@ export default function RootLayout({
 }) {
   const router = useRouter();
   useEffect(() => {
-    const session = supabase.auth.getSession();
-    session.then(({ data }) => {
-      if (!data.session) {
+    if (typeof window !== "undefined") {
+      const isAdmin = localStorage.getItem("isAdmin");
+      if (isAdmin !== "true") {
         router.replace('/authentication/login');
       }
-    });
+    }
   }, [router]);
   return (
     <html lang="en">
