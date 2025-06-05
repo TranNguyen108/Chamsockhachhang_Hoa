@@ -12,6 +12,7 @@ const Menuitems = [
   {
     navlabel: true,
     subheader: "ALAN CORP",
+    style: { fontSize: '12px', fontWeight: 'bold', color: '#5D87FF' },
   },
   {
     id: uniqueId(),

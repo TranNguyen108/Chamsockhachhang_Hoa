@@ -75,7 +75,13 @@ const SidebarItems = () => {
     < >
       <MUI_Sidebar width={"100%"} showProfile={false} themeColor={"#5D87FF"} themeSecondaryColor={'#49beff'} >
 
-        <Logo img='/images/logos/dark-logo.svg' component={Link} to="/" >Modernize</Logo>
+<Logo component={Link} to="/" sx={{ fontSize: '8rem', fontWeight: 'bold', color: '#5D87FF' }}>
+  ALÂN CORP
+</Logo>
+
+
+
+
 
         {renderMenuItems(Menuitems, pathDirect)}
         <Box px={2}>

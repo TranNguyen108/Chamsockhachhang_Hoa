@@ -1,17 +1,26 @@
 import { useEffect, useState } from 'react';
-import { Card, Typography, Stack } from '@mui/material';
+import { Stack } from '@mui/material';
 import DashboardCard from '@/app/(DashboardLayout)/components/shared/DashboardCard';
 import { supabase } from '@/utils/supabase';
 import dynamic from 'next/dynamic';
+import { ApexOptions } from 'apexcharts';
+
+// Load Chart component dynamically (SSR false)
 const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
 
 const SalesOverview = () => {
-  const [chartData, setChartData] = useState({
+  const [chartData, setChartData] = useState<{
+    categories: string[];
+    users: number[];
+    orders: number[];
+    done: number[];
+    cancelled: number[];
+  }>({
     categories: [],
     users: [],
     orders: [],
     done: [],
-    cancelled: []
+    cancelled: [],
   });
 
   useEffect(() => {
@@ -21,34 +30,58 @@ const SalesOverview = () => {
   const fetchData = async () => {
     const days = 7;
     const today = new Date();
-    let categories = [];
-    let users = [];
-    let orders = [];
-    let done = [];
-    let cancelled = [];
+    let categories: string[] = [];
+    let users: number[] = [];
+    let orders: number[] = [];
+    let done: number[] = [];
+    let cancelled: number[] = [];
+
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(today.getDate() - i);
-      const from = new Date(d.setHours(0,0,0,0)).toISOString();
-      const to = new Date(d.setHours(23,59,59,999)).toISOString();
-      categories.push(`${d.getDate()}/${d.getMonth()+1}`);
+      const from = new Date(d.setHours(0, 0, 0, 0)).toISOString();
+      const to = new Date(d.setHours(23, 59, 59, 999)).toISOString();
+      categories.push(`${d.getDate()}/${d.getMonth() + 1}`);
+
       // Người dùng mới
-      const { count: userCount } = await supabase.from('customers').select('*', { count: 'exact', head: true }).gte('created_at', from).lte('created_at', to);
-      users.push(userCount || 0);
+      const { count: userCount } = await supabase
+        .from('customers')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', from)
+        .lte('created_at', to);
+      users.push(userCount ?? 0);
+
       // Đơn hàng
-      const { count: orderCount } = await supabase.from('orders').select('*', { count: 'exact', head: true }).gte('created_at', from).lte('created_at', to);
-      orders.push(orderCount || 0);
+      const { count: orderCount } = await supabase
+        .from('orders')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', from)
+        .lte('created_at', to);
+      orders.push(orderCount ?? 0);
+
       // Đơn hoàn thành
-      const { count: doneCount } = await supabase.from('orders').select('*', { count: 'exact', head: true }).gte('created_at', from).lte('created_at', to).eq('status', 'delivered');
-      done.push(doneCount || 0);
+      const { count: doneCount } = await supabase
+        .from('orders')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', from)
+        .lte('created_at', to)
+        .eq('status', 'delivered');
+      done.push(doneCount ?? 0);
+
       // Đơn huỷ
-      const { count: cancelCount } = await supabase.from('orders').select('*', { count: 'exact', head: true }).gte('created_at', from).lte('created_at', to).eq('status', 'cancelled');
-      cancelled.push(cancelCount || 0);
+      const { count: cancelCount } = await supabase
+        .from('orders')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', from)
+        .lte('created_at', to)
+        .eq('status', 'cancelled');
+      cancelled.push(cancelCount ?? 0);
     }
     setChartData({ categories, users, orders, done, cancelled });
   };
 
-  const options = {
+  // Ép kiểu đúng với ApexCharts để tránh lỗi TypeScript
+  const options: ApexOptions = {
     chart: { type: 'bar', toolbar: { show: false } },
     xaxis: { categories: chartData.categories },
     yaxis: { title: { text: 'Số lượng' } },

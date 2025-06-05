@@ -54,8 +54,9 @@ const Login2 = () => {
                     textAlign="center"
                     color="textSecondary"
                     mb={1}
+                    
                   >
-                    Your Social Campaigns
+                    ALÂN CORP
                   </Typography>
                 }
               />

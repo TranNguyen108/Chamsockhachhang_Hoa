@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, ChangeEvent } from "react";
 import {
   Typography,
   Card,
@@ -73,13 +73,16 @@ const CustomerManagement = () => {
     setForm({ name: "", phone: "", note: "" });
     setOpen(true);
   };
+
   const handleClose = () => {
     setOpen(false);
     setForm({ name: "", phone: "", note: "" });
   };
-  const handleChange = (e: any) => {
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
+
   const handleSubmit = async () => {
     if (!form.name || !form.phone) {
       setError("Vui lòng nhập tên và số điện thoại");
@@ -90,6 +93,7 @@ const CustomerManagement = () => {
       .from("customers")
       .select("id")
       .eq("phone", form.phone);
+
     if (existed && existed.length > 0) {
       setError("Số điện thoại đã tồn tại!");
       return;
@@ -98,10 +102,12 @@ const CustomerManagement = () => {
     handleClose();
     fetchCustomers();
   };
+
   const handleDelete = async (id: string) => {
     await supabase.from("customers").delete().eq("id", id);
     fetchCustomers();
   };
+
   const handleView = async (customer: Customer) => {
     setViewCustomer(customer);
     const { data } = await supabase
@@ -111,11 +117,13 @@ const CustomerManagement = () => {
       .order("created_at", { ascending: false });
     setOrders(data || []);
   };
+
   const handleEditPoint = (customer: Customer) => {
     setEditPointCustomer(customer);
     setPointInput("");
     setPointError("");
   };
+
   const filtered = customers.filter(
     (c) =>
       c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -123,7 +131,10 @@ const CustomerManagement = () => {
   );
 
   return (
-    <PageContainer title="Quản lý khách hàng" description="Quản lý danh sách khách hàng, thêm, sửa, xoá, tìm kiếm, thống kê.">
+    <PageContainer
+      title="Quản lý khách hàng"
+      description="Quản lý danh sách khách hàng, thêm, sửa, xoá, tìm kiếm, thống kê."
+    >
       <Card sx={{ mb: 3, p: 2 }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
           <Typography variant="h4">Quản lý khách hàng</Typography>
@@ -150,14 +161,26 @@ const CustomerManagement = () => {
         </Grid>
         <Paper variant="outlined" sx={{ mt: 2 }}>
           <Table>
-            <TableHead sx={{ bgcolor: '#f5f5f5' }}>
+            <TableHead sx={{ bgcolor: "#f5f5f5" }}>
               <TableRow>
-                <TableCell><b>Tên</b></TableCell>
-                <TableCell><b>Số điện thoại</b></TableCell>
-                <TableCell><b>Ghi chú</b></TableCell>
-                <TableCell><b>Điểm tích lũy</b></TableCell>
-                <TableCell><b>Ngày tạo</b></TableCell>
-                <TableCell><b>Thao tác</b></TableCell>
+                <TableCell>
+                  <b>Tên</b>
+                </TableCell>
+                <TableCell>
+                  <b>Số điện thoại</b>
+                </TableCell>
+                <TableCell>
+                  <b>Ghi chú</b>
+                </TableCell>
+                <TableCell>
+                  <b>Điểm tích lũy</b>
+                </TableCell>
+                <TableCell>
+                  <b>Ngày tạo</b>
+                </TableCell>
+                <TableCell>
+                  <b>Thao tác</b>
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -167,11 +190,17 @@ const CustomerManagement = () => {
                   <TableCell>{c.phone}</TableCell>
                   <TableCell>{c.note}</TableCell>
                   <TableCell>{c.point || 0}</TableCell>
-                  <TableCell>{c.created_at ? new Date(c.created_at).toLocaleDateString() : ''}</TableCell>
+                  <TableCell>{c.created_at ? new Date(c.created_at).toLocaleDateString() : ""}</TableCell>
                   <TableCell>
-                    <IconButton onClick={() => handleView(c)}><IconEye size={18} /></IconButton>
-                    <IconButton onClick={() => handleEditPoint(c)}><IconEdit size={18} /></IconButton>
-                    <IconButton onClick={() => handleDelete(c.id)}><IconTrash size={18} /></IconButton>
+                    <IconButton onClick={() => handleView(c)}>
+                      <IconEye size={18} />
+                    </IconButton>
+                    <IconButton onClick={() => handleEditPoint(c)}>
+                      <IconEdit size={18} />
+                    </IconButton>
+                    <IconButton onClick={() => handleDelete(c.id)}>
+                      <IconTrash size={18} />
+                    </IconButton>
                   </TableCell>
                 </TableRow>
               ))}
@@ -179,30 +208,67 @@ const CustomerManagement = () => {
           </Table>
         </Paper>
       </Card>
+
+      {/* Dialog thêm khách hàng */}
       <Dialog open={open} onClose={handleClose}>
         <DialogTitle>Thêm khách hàng</DialogTitle>
         <DialogContent>
-          <TextField margin="dense" label="Tên khách hàng" name="name" value={form.name} onChange={handleChange} fullWidth />
-          <TextField margin="dense" label="Số điện thoại" name="phone" value={form.phone} onChange={handleChange} fullWidth />
-          <TextField margin="dense" label="Ghi chú" name="note" value={form.note} onChange={handleChange} fullWidth />
+          <TextField
+            margin="dense"
+            label="Tên khách hàng"
+            name="name"
+            value={form.name}
+            onChange={handleChange}
+            fullWidth
+          />
+          <TextField
+            margin="dense"
+            label="Số điện thoại"
+            name="phone"
+            value={form.phone}
+            onChange={handleChange}
+            fullWidth
+          />
+          <TextField
+            margin="dense"
+            label="Ghi chú"
+            name="note"
+            value={form.note}
+            onChange={handleChange}
+            fullWidth
+          />
           {error && <Typography color="error">{error}</Typography>}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>Huỷ</Button>
-          <Button onClick={handleSubmit} variant="contained">Lưu</Button>
+          <Button onClick={handleSubmit} variant="contained">
+            Lưu
+          </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Dialog xem lịch sử mua hàng */}
       <Dialog open={!!viewCustomer} onClose={() => setViewCustomer(null)} maxWidth="md" fullWidth>
         <DialogTitle>Lịch sử mua hàng - {viewCustomer?.name}</DialogTitle>
         <DialogContent>
           <Table>
-            <TableHead sx={{ bgcolor: '#f5f5f5' }}>
+            <TableHead sx={{ bgcolor: "#f5f5f5" }}>
               <TableRow>
-                <TableCell><b>Ngày</b></TableCell>
-                <TableCell><b>Sản phẩm</b></TableCell>
-                <TableCell><b>Giá tiền</b></TableCell>
-                <TableCell><b>Trạng thái</b></TableCell>
-                <TableCell><b>Điểm nhận</b></TableCell>
+                <TableCell>
+                  <b>Ngày</b>
+                </TableCell>
+                <TableCell>
+                  <b>Sản phẩm</b>
+                </TableCell>
+                <TableCell>
+                  <b>Giá tiền</b>
+                </TableCell>
+                <TableCell>
+                  <b>Trạng thái</b>
+                </TableCell>
+                <TableCell>
+                  <b>Điểm nhận</b>
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -222,6 +288,7 @@ const CustomerManagement = () => {
           <Button onClick={() => setViewCustomer(null)}>Đóng</Button>
         </DialogActions>
       </Dialog>
+
       {/* Dialog chỉnh sửa điểm */}
       <Dialog open={!!editPointCustomer} onClose={() => setEditPointCustomer(null)}>
         <DialogTitle>Trừ điểm tích luỹ & cập nhật ghi chú</DialogTitle>
@@ -231,15 +298,19 @@ const CustomerManagement = () => {
             margin="dense"
             label="Nhập số điểm muốn trừ"
             value={pointInput}
-            onChange={e => setPointInput(e.target.value)}
+            onChange={(e) => setPointInput(e.target.value)}
             fullWidth
             type="number"
           />
           <TextField
             margin="dense"
             label="Ghi chú khách hàng"
-            value={editPointCustomer?.note || ''}
-            onChange={e => setEditPointCustomer(editPointCustomer ? { ...editPointCustomer, note: e.target.value } : null)}
+            value={editPointCustomer?.note || ""}
+            onChange={(e) =>
+              setEditPointCustomer(
+                editPointCustomer ? { ...editPointCustomer, note: e.target.value } : null
+              )
+            }
             fullWidth
             multiline
             minRows={2}
@@ -248,23 +319,31 @@ const CustomerManagement = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditPointCustomer(null)}>Huỷ</Button>
-          <Button onClick={async () => {
-            const value = Number(pointInput);
-            if (isNaN(value) || value <= 0) {
-              setPointError("Vui lòng nhập số điểm hợp lệ");
-              return;
-            }
-            if (editPointCustomer && (editPointCustomer.point || 0) < value) {
-              setPointError("Điểm trừ vượt quá điểm tích luỹ hiện tại");
-              return;
-            }
-            if (editPointCustomer) {
-              await supabase.from("customers").update({ point: (editPointCustomer.point || 0) - value, note: editPointCustomer.note }).eq("id", editPointCustomer.id);
-              setEditPointCustomer(null);
-              setPointInput("");
-              fetchCustomers();
-            }
-          }} variant="contained">Lưu</Button>
+          <Button
+            onClick={async () => {
+              const value = Number(pointInput);
+              if (isNaN(value) || value <= 0) {
+                setPointError("Vui lòng nhập số điểm hợp lệ");
+                return;
+              }
+              if (editPointCustomer && (editPointCustomer.point || 0) < value) {
+                setPointError("Điểm trừ vượt quá điểm tích luỹ hiện tại");
+                return;
+              }
+              if (editPointCustomer) {
+                await supabase
+                  .from("customers")
+                  .update({ point: (editPointCustomer.point || 0) - value, note: editPointCustomer.note })
+                  .eq("id", editPointCustomer.id);
+                setEditPointCustomer(null);
+                setPointInput("");
+                fetchCustomers();
+              }
+            }}
+            variant="contained"
+          >
+            Lưu
+          </Button>
         </DialogActions>
       </Dialog>
     </PageContainer>
