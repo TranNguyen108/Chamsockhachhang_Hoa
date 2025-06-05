@@ -101,7 +101,7 @@ const ThongKePage = () => {
 
       // Lấy đơn hàng trong khoảng thời gian
       const { data: ordersData, error: ordersError } = await supabase
-        .from<Order>("orders")
+        .from("orders")
         .select("*")
         .gte("created_at", from)
         .lte("created_at", to);
@@ -213,14 +213,14 @@ const ThongKePage = () => {
               label="Từ"
               value={date}
               onChange={(newValue) => newValue && setDate(newValue)}
-              renderInput={(params) => <TextField size="small" {...params} />}
+              slotProps={{ textField: { size: "small" } }}
             />
             {filterType === "range" && (
               <DatePicker
                 label="Đến"
                 value={dateTo}
                 onChange={(newValue) => newValue && setDateTo(newValue)}
-                renderInput={(params) => <TextField size="small" {...params} />}
+                slotProps={{ textField: { size: "small" } }}
               />
             )}
           </LocalizationProvider>
