@@ -56,7 +56,7 @@ const CustomerManagement = () => {
   const [pointError, setPointError] = useState("");
   // Thêm state cho chỉnh sửa tên, số điện thoại
   const [editCustomer, setEditCustomer] = useState<Customer | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", phone: "" });
+  const [editForm, setEditForm] = useState({ name: "", phone: "", note: "", point: "0" });
 
   useEffect(() => {
     fetchCustomers();
@@ -126,6 +126,47 @@ const CustomerManagement = () => {
     setPointError("");
   };
 
+  // Thêm hàm mở dialog sửa khách hàng
+  const handleEdit = (customer: Customer) => {
+    setEditCustomer(customer);
+    setEditForm({
+      name: customer.name,
+      phone: customer.phone,
+      note: customer.note || "",
+      point: customer.point?.toString() || "0",
+    });
+  };
+
+  // Thêm hàm lưu chỉnh sửa
+  const handleEditSave = async () => {
+    if (!editCustomer) return;
+    if (!editForm.name || !editForm.phone) {
+      setError("Vui lòng nhập tên và số điện thoại");
+      return;
+    }
+    // Tính điểm mới: trừ số điểm nhập vào điểm hiện có
+    const currentPoint = Number(editCustomer.point) || 0;
+    const subtractPoint = Number(editForm.point) || 0;
+    if (subtractPoint < 0) {
+      setError("Số điểm trừ phải lớn hơn hoặc bằng 0");
+      return;
+    }
+    if (subtractPoint > currentPoint) {
+      setError("Không thể trừ nhiều hơn số điểm hiện có");
+      return;
+    }
+    const newPoint = currentPoint - subtractPoint;
+    const updates: any = {
+      name: editForm.name,
+      phone: editForm.phone,
+      note: editForm.note,
+      point: newPoint,
+    };
+    await supabase.from("customers").update(updates).eq("id", editCustomer.id);
+    setEditCustomer(null);
+    fetchCustomers();
+  };
+
   const filtered = customers.filter(
     (c) =>
       c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -178,13 +219,13 @@ const CustomerManagement = () => {
                 <TableRow key={c.id} hover sx={{ transition: 'background 0.2s', cursor: 'pointer', '&:hover': { bgcolor: '#e3f2fd' } }}>
                   <TableCell sx={{ minWidth: 120 }}>{c.name}</TableCell>
                   <TableCell sx={{ minWidth: 120 }}>{c.phone}</TableCell>
-                  <TableCell sx={{ minWidth: 120 }}>{c.note}</TableCell>
-                  <TableCell sx={{ minWidth: 80 }}>{c.point || 0}</TableCell>
-                  <TableCell sx={{ minWidth: 100 }}>{c.created_at ? new Date(c.created_at).toLocaleDateString() : ""}</TableCell>
-                  <TableCell sx={{ minWidth: 120 }}>
-                    <IconButton onClick={() => handleView(c)} sx={{ color: '#1976d2', '&:hover': { bgcolor: '#e3f2fd' } }}><IconEye size={18} /></IconButton>
-                    <IconButton onClick={() => setEditCustomer(c)} sx={{ color: '#388e3c', '&:hover': { bgcolor: '#e8f5e9' } }}><IconEdit size={18} /></IconButton>
+                  <TableCell sx={{ minWidth: 120 }}>{c.note || "-"}</TableCell>
+                  <TableCell sx={{ minWidth: 120 }}>{c.point || 0}</TableCell>
+                  <TableCell sx={{ minWidth: 120 }}>{c.created_at ? new Date(c.created_at).toLocaleDateString() : "-"}</TableCell>
+                  <TableCell>
+                    <IconButton onClick={() => handleEdit(c)} sx={{ color: '#1976d2', '&:hover': { bgcolor: '#e3f2fd' } }}><IconEdit size={18} /></IconButton>
                     <IconButton onClick={() => handleDelete(c.id)} sx={{ color: '#d32f2f', '&:hover': { bgcolor: '#ffebee' } }}><IconTrash size={18} /></IconButton>
+                    <IconButton onClick={() => handleView(c)} sx={{ color: '#1976d2', '&:hover': { bgcolor: '#e3f2fd' } }}><IconEye size={18} /></IconButton>
                   </TableCell>
                 </TableRow>
               ))}
@@ -273,102 +314,50 @@ const CustomerManagement = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Dialog chỉnh sửa thông tin khách hàng */}
+      {/* Dialog sửa khách hàng */}
       <Dialog open={!!editCustomer} onClose={() => setEditCustomer(null)}>
-        <DialogTitle>Chỉnh sửa thông tin khách hàng</DialogTitle>
+        <DialogTitle>Sửa khách hàng</DialogTitle>
         <DialogContent>
           <TextField
             margin="dense"
             label="Tên khách hàng"
+            name="name"
             value={editForm.name}
-            onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+            onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
             fullWidth
           />
           <TextField
             margin="dense"
             label="Số điện thoại"
+            name="phone"
             value={editForm.phone}
-            onChange={e => setEditForm({ ...editForm, phone: e.target.value })}
+            onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))}
+            fullWidth
+          />
+          <TextField
+            margin="dense"
+            label="Ghi chú"
+            name="note"
+            value={editForm.note}
+            onChange={e => setEditForm(f => ({ ...f, note: e.target.value }))}
+            fullWidth
+          />
+          <Typography variant="caption" color="textSecondary" sx={{ mt: 1, mb: 0.5 }}>
+            Nhập số điểm muốn trừ
+          </Typography>
+          <TextField
+            margin="dense"
+            label="Điểm tích luỹ"
+            name="point"
+            type="number"
+            value={editForm.point}
+            onChange={e => setEditForm(f => ({ ...f, point: e.target.value }))}
             fullWidth
           />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditCustomer(null)}>Huỷ</Button>
-          <Button
-            onClick={async () => {
-              if (!editCustomer) return;
-              await supabase
-                .from("customers")
-                .update({ name: editForm.name, phone: editForm.phone })
-                .eq("id", editCustomer.id);
-              setEditCustomer(null);
-              fetchCustomers();
-            }}
-            variant="contained"
-          >
-            Lưu
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Dialog chỉnh sửa điểm */}
-      <Dialog open={!!editPointCustomer} onClose={() => setEditPointCustomer(null)}>
-        <DialogTitle>Trừ điểm tích luỹ & cập nhật ghi chú</DialogTitle>
-        <DialogContent>
-          <Typography>Điểm hiện tại: {editPointCustomer?.point || 0}</Typography>
-          <TextField
-            margin="dense"
-            label="Nhập số điểm muốn trừ"
-            value={pointInput}
-            onChange={(e) => setPointInput(e.target.value)}
-            fullWidth
-            type="number"
-          />
-          <TextField
-            margin="dense"
-            label="Ghi chú khách hàng"
-            value={editPointCustomer?.note || ""}
-            onChange={(e) =>
-              setEditPointCustomer(
-                editPointCustomer ? { ...editPointCustomer, note: e.target.value } : null
-              )
-            }
-            fullWidth
-            multiline
-            minRows={2}
-          />
-          {pointError && <Typography color="error">{pointError}</Typography>}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEditPointCustomer(null)}>Huỷ</Button>
-          <Button
-            onClick={async () => {
-              const value = Number(pointInput);
-              if (pointInput && (isNaN(value) || value <= 0)) {
-                setPointError("Vui lòng nhập số điểm hợp lệ");
-                return;
-              }
-              if (pointInput && editPointCustomer && (editPointCustomer.point || 0) < value) {
-                setPointError("Điểm trừ vượt quá điểm tích luỹ hiện tại");
-                return;
-              }
-              if (editPointCustomer) {
-                await supabase
-                  .from("customers")
-                  .update({
-                    point: pointInput ? (editPointCustomer.point || 0) - value : editPointCustomer.point,
-                    note: editPointCustomer.note
-                  })
-                  .eq("id", editPointCustomer.id);
-                setEditPointCustomer(null);
-                setPointInput("");
-                fetchCustomers();
-              }
-            }}
-            variant="contained"
-          >
-            Lưu
-          </Button>
+          <Button onClick={handleEditSave} variant="contained">Lưu</Button>
         </DialogActions>
       </Dialog>
     </PageContainer>
