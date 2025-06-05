@@ -60,6 +60,13 @@ const CustomerManagement = () => {
 
   useEffect(() => {
     fetchCustomers();
+    // Lắng nghe sự kiện thêm khách hàng mới từ trang đơn hàng
+    const handler = () => {
+      fetchCustomers();
+      setTimeout(() => fetchCustomers(), 300); // Gọi lại sau 300ms để chắc chắn lấy được dữ liệu mới
+    };
+    window.addEventListener('customer-added', handler);
+    return () => window.removeEventListener('customer-added', handler);
   }, []);
 
   const fetchCustomers = async () => {
@@ -219,9 +226,9 @@ const CustomerManagement = () => {
                 <TableRow key={c.id} hover sx={{ transition: 'background 0.2s', cursor: 'pointer', '&:hover': { bgcolor: '#e3f2fd' } }}>
                   <TableCell sx={{ minWidth: 120 }}>{c.name}</TableCell>
                   <TableCell sx={{ minWidth: 120 }}>{c.phone}</TableCell>
-                  <TableCell sx={{ minWidth: 120 }}>{c.note || "-"}</TableCell>
-                  <TableCell sx={{ minWidth: 120 }}>{c.point || 0}</TableCell>
-                  <TableCell sx={{ minWidth: 120 }}>{c.created_at ? new Date(c.created_at).toLocaleDateString() : "-"}</TableCell>
+                  <TableCell>{c.note}</TableCell>
+                  <TableCell>{c.point}</TableCell>
+                  <TableCell>{c.created_at ? new Date(c.created_at).toLocaleDateString('vi-VN') : ''}</TableCell>
                   <TableCell>
                     <IconButton onClick={() => handleEdit(c)} sx={{ color: '#1976d2', '&:hover': { bgcolor: '#e3f2fd' } }}><IconEdit size={18} /></IconButton>
                     <IconButton onClick={() => handleDelete(c.id)} sx={{ color: '#d32f2f', '&:hover': { bgcolor: '#ffebee' } }}><IconTrash size={18} /></IconButton>

@@ -98,15 +98,21 @@ const OrderManagement = () => {
     const { data: customers } = await supabase.from("customers").select("*").eq("phone", form.customer_phone);
     let customerId = null;
     let currentPoint = 0;
+    let isNewCustomer = false;
     if (customers && customers.length > 0) {
       customerId = customers[0].id;
       currentPoint = customers[0].point || 0;
     } else {
-      // Nếu chưa có khách hàng thì tạo mới
-      const { data: newCustomer } = await supabase.from("customers").insert({ name: form.customer_name, phone: form.customer_phone, address: form.customer_address, point: 0 }).select();
+      // Nếu chưa có khách hàng thì tạo mới (KHÔNG insert address vì bảng customers không có cột này)
+      const { data: newCustomer, error: customerInsertError } = await supabase.from("customers").insert({ name: form.customer_name, phone: form.customer_phone, point: 0 }).select();
+      if (customerInsertError) {
+        setError("Lỗi khi thêm khách hàng: " + customerInsertError.message);
+        return;
+      }
       if (newCustomer && newCustomer.length > 0) {
         customerId = newCustomer[0].id;
         currentPoint = 0;
+        isNewCustomer = true;
       }
     }
     // Tính điểm tích luỹ
@@ -126,14 +132,15 @@ const OrderManagement = () => {
       setError("Lỗi khi thêm đơn hàng: " + insertError.message);
       return;
     }
-    // Cộng điểm cho khách hàng chỉ khi KHÔNG phải huỷ đơn
-    if (customerId && addPoint > 0) {
-      await supabase.from("customers").update({ point: currentPoint + addPoint }).eq("id", customerId);
-    }
+    // KHÔNG cộng điểm ở đây, chỉ cộng khi chuyển sang 'delivered'
     handleClose();
     setVoucherCode("");
     setVoucherInfo(null);
     fetchOrders();
+    // Nếu vừa thêm khách hàng mới, gọi fetchCustomers bên trang Quản lý khách hàng nếu có thể
+    if (isNewCustomer && window && window.dispatchEvent) {
+      window.dispatchEvent(new CustomEvent('customer-added'));
+    }
   };
   const handleStatus = async (id: string, status: string) => {
     // Lấy đơn hàng hiện tại
