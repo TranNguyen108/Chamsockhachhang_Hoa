@@ -82,12 +82,38 @@ const OrderManagement = () => {
   };
   const handleVoucherCheck = async (code: string) => {
     if (!code) { setVoucherInfo(null); return; }
+    
+    // Kiểm tra xem voucher có tồn tại và còn hiệu lực không
     const { data } = await supabase.from("vouchers").select("*").eq("code", code).single();
-    if (data && data.status === "active" && new Date(data.expired_at) >= new Date()) {
-      setVoucherInfo({ discount: data.discount, code: data.code });
-    } else {
+    if (!data || data.status !== "active" || new Date(data.expired_at) < new Date()) {
       setVoucherInfo(null);
+      setError("Voucher không hợp lệ hoặc đã hết hạn");
+      return;
     }
+    
+    // Kiểm tra xem voucher đã được sử dụng chưa (trong bất kỳ đơn hàng nào có trạng thái pending, delivered hoặc cancelled)
+    const { data: usedOrders, error: orderCheckError } = await supabase
+      .from("orders")
+      .select("id")
+      .eq("voucher_code", code)
+      .in("status", ["pending", "delivered", "cancelled"]);
+      
+    if (orderCheckError) {
+      console.error("Lỗi khi kiểm tra voucher:", orderCheckError);
+      setError("Có lỗi xảy ra khi kiểm tra voucher");
+      setVoucherInfo(null);
+      return;
+    }
+    
+    if (usedOrders && usedOrders.length > 0) {
+      setVoucherInfo(null);
+      setError("Voucher này đã được sử dụng, mỗi voucher chỉ được sử dụng một lần duy nhất");
+      return;
+    }
+    
+    // Voucher hợp lệ và chưa được sử dụng
+    setVoucherInfo({ discount: data.discount, code: data.code });
+    setError("");
   };
   const handleSubmit = async () => {
     if (!form.customer_name || !form.customer_phone || !form.customer_address || !form.product || !form.amount) {
@@ -274,15 +300,43 @@ const OrderManagement = () => {
               setEditForm((prev: any) => ({ ...prev, voucher_discount: 0, final_amount: prev.amount }));
               return;
             }
+            
+            // Kiểm tra xem voucher có tồn tại và còn hiệu lực không
             const { data } = await supabase.from("vouchers").select("*").eq("code", code).single();
-            if (data && data.status === "active" && new Date(data.expired_at) >= new Date()) {
-              const discount = Math.round(Number(editForm.amount) * data.discount / 100);
-              setEditForm((prev: any) => ({ ...prev, voucher_discount: discount, final_amount: Number(prev.amount) - discount }));
-              setError("");
-            } else {
+            if (!data || data.status !== "active" || new Date(data.expired_at) < new Date()) {
               setEditForm((prev: any) => ({ ...prev, voucher_discount: 0, final_amount: prev.amount }));
               setError("Mã voucher không hợp lệ hoặc đã hết hạn");
+              return;
             }
+            
+            // Kiểm tra xem voucher đã được sử dụng chưa (trong đơn hàng khác)
+            const { data: usedOrders, error: orderCheckError } = await supabase
+              .from("orders")
+              .select("id")
+              .eq("voucher_code", code)
+              .in("status", ["pending", "delivered", "cancelled"]);
+              
+            if (orderCheckError) {
+              console.error("Lỗi khi kiểm tra voucher:", orderCheckError);
+              setError("Có lỗi xảy ra khi kiểm tra voucher");
+              return;
+            }
+            
+            // Nếu là voucher cũ của đơn hàng hiện tại thì vẫn được sử dụng
+            if (usedOrders && usedOrders.length > 0) {
+              // Kiểm tra xem có phải là đơn hàng hiện tại không
+              const isCurrentOrder = usedOrders.some(order => order.id === editOrder?.id);
+              if (!isCurrentOrder) {
+                setEditForm((prev: any) => ({ ...prev, voucher_discount: 0, final_amount: prev.amount }));
+                setError("Voucher này đã được sử dụng!!!");
+                return;
+              }
+            }
+            
+            // Voucher hợp lệ
+            const discount = Math.round(Number(editForm.amount) * data.discount / 100);
+            setEditForm((prev: any) => ({ ...prev, voucher_discount: discount, final_amount: Number(prev.amount) - discount }));
+            setError("");
           }} fullWidth />
           {editForm.voucher_discount ? <Typography color="success.main">Giảm: {editForm.voucher_discount.toLocaleString()}₫</Typography> : null}
           {editForm.final_amount ? <Typography color="primary">Thành tiền: {editForm.final_amount.toLocaleString()}₫</Typography> : null}
